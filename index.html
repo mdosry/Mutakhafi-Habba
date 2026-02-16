@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متخفي هبّة 🎭</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --neon-blue: #58a6ff; --bg-dark: #0d1117; --card-bg: #161b22; --accent: #3081ce; --red: #f85149; }
+        body { background-color: var(--bg-dark); color: white; font-family: 'Tajawal', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .hidden { display: none !important; }
+        .btn { background: var(--accent); border: none; color: white; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
+        .screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: var(--card-bg); border: 2px solid var(--accent); border-radius: 20px; padding: 25px; width: 100%; max-width: 400px; text-align: center; }
+        input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #30363d; background: #0d1117; color: white; margin-bottom: 15px; box-sizing: border-box; }
+        #chat-container { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; background: #0d1117; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { background: #21262d; padding: 10px 15px; border-radius: 15px; max-width: 80%; align-self: flex-start; }
+        .msg.me { align-self: flex-end; background: var(--accent); }
+        .input-area { padding: 15px; background: #161b22; display: flex; gap: 10px; }
+        #vote-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="screen">
+        <div class="card">
+            <h2 style="color: var(--neon-blue);">متخفي هبّة 🎭</h2>
+            <input type="text" id="fakeName" placeholder="اسمك المستعار">
+            <select id="field">
+                <option value="خبير AI">خبير ذكاء اصطناعي 🤖</option>
+                <option value="تاجر عملات">تاجر عملات رقمية 🪙</option>
+                <option value="صانع محتوى">صانع محتوى هبّة 🎥</option>
+            </select>
+            <button class="btn" onclick="joinGame()">ابدأ اللعب 💬</button>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="screen hidden" style="padding: 0;">
+        <div id="chat-container">
+            <div style="padding: 10px; background: #161b22; text-align: center;">
+                <span id="player-tag"></span>
+                <button class="btn" style="background: var(--red); width: auto; padding: 5px 10px;" onclick="triggerVote()">إقصاء 🚫</button>
+            </div>
+            <div id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="msgInput" placeholder="اكتب رسالتك...">
+                <button class="btn" style="width: auto;" onclick="sendMsg()">إرسال</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="vote-overlay" class="hidden">
+        <div class="card">
+            <h2 style="color: var(--red);">تصويت إقصاء! ⚠️</h2>
+            <p id="vote-counter">0</p>
+            <button class="btn" onclick="castVote()">أوافق ✅</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyBZfqpgix19pOGd_6xFMTV-p2YbrJmLwGo",
+          authDomain: "mutakhafi-habba.firebaseapp.com",
+          projectId: "mutakhafi-habba",
+          storageBucket: "mutakhafi-habba.firebasestorage.app",
+          messagingSenderId: "556976912934",
+          appId: "1:556976912934:web:aa52c43ae4b0fd8f5344e7",
+          databaseURL: "https://mutakhafi-habba-default-rtdb.firebaseio.com"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let myNick = "";
+
+        function joinGame() {
+            myNick = document.getElementById('fakeName').value;
+            if(!myNick) return alert("الاسم مطلوب!");
+            document.getElementById('player-tag').innerText = myNick;
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            listenMessages();
+            listenVotes();
+        }
+
+        function sendMsg() {
+            const val = document.getElementById('msgInput').value;
+            if(!val) return;
+            db.ref('msgs').push({ user: myNick, text: val });
+            document.getElementById('msgInput').value = "";
+        }
+
+        function listenMessages() {
+            db.ref('msgs').on('child_added', snap => {
+                const data = snap.val();
+                const div = document.createElement('div');
+                div.className = `msg ${data.user === myNick ? 'me' : ''}`;
+                div.innerHTML = `<b>${data.user}:</b> ${data.text}`;
+                document.getElementById('messages').appendChild(div);
+                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            });
+        }
+
+        function triggerVote() { db.ref('vote').set({ active: true, count: 1 }); }
+        function listenVotes() {
+            db.ref('vote').on('value', snap => {
+                const data = snap.val();
+                if(data && data.active) {
+                    document.getElementById('vote-overlay').classList.remove('hidden');
+                    document.getElementById('vote-counter').innerText = "الموافقون: " + data.count;
+                } else { document.getElementById('vote-overlay').classList.add('hidden'); }
+            });
+        }
+        function castVote() { db.ref('vote/count').transaction(c => (c || 0) + 1); }
+    </script>
+</body>
+</html>
