@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متخفي هبّة PRO - النسخة النهائية 🏆</title>
+    <title>متخفي هبّة 🎭</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
@@ -30,11 +30,11 @@
 
     <div id="setup-screen" class="screen">
         <div class="card">
-            <h2 style="color: var(--neon-blue);">متخفي هبّة PRO 🎭</h2>
+            <h2 style="color: var(--neon-blue);">متخفي هبّة 🎭</h2>
             <input type="number" id="roomNum" placeholder="رقم الغرفة">
             <input type="text" id="realName" placeholder="اسمك الحقيقي">
             <input type="text" id="fakeName" placeholder="اسمك المستعار">
-            <input type="text" id="avatarStyle" placeholder="وصف شكلك (مثلاً: لحية، شعر طويل، نظارات)">
+            <input type="text" id="avatarStyle" placeholder="وصف شكلك (مثلاً: لحية، نظارات)">
             <button class="btn" onclick="joinGame()">دخول اللعبة</button>
         </div>
     </div>
@@ -83,21 +83,28 @@
 
             if(!myRoom || !myReal || !myNick) return alert("البيانات ناقصة!");
 
-            // نظام أفاتار بشري (Avataaars)
             myAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(style)}&backgroundColor=b6e3f4`;
 
             const pRef = db.ref(`rooms/${myRoom}/players/${myNick}`);
             pRef.set({ real: myReal, avatar: myAvatar, status: 'playing' });
             pRef.onDisconnect().remove();
 
+            db.ref(`rooms/${myRoom}/phase`).once('value', snap => {
+                if(!snap.exists() || snap.val() === 'voting') {
+                    db.ref(`rooms/${myRoom}/phase`).set('chat');
+                    db.ref(`rooms/${myRoom}/timer`).set(300);
+                }
+            });
+
             document.getElementById('player-info').innerText = myNick;
             document.getElementById('setup-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
 
             listenMessages();
-            startGlobalTimer(); // تشغيل العداد
-            listenTimer();      // الاستماع للوقت
-            listenPhase();      // مراقبة مراحل اللعبة
+            startCounter();
+            listenTimer();
+            listenPhase();
+            listenStatus();
         }
 
         function sendMsg() {
@@ -114,35 +121,38 @@
                 const div = document.createElement('div');
                 div.className = `msg ${data.user === myNick ? 'me' : ''}`;
                 div.innerHTML = `<img src="${data.avatar}" class="msg-avatar"><div><div style="font-size:10px; opacity:0.6">${data.user}</div>${data.text}</div>`;
-                document.getElementById('messages').appendChild(div);
-                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+                const msgsDiv = document.getElementById('messages');
+                msgsDiv.appendChild(div);
+                msgsDiv.scrollTop = msgsDiv.scrollHeight;
             });
         }
 
-        // تشغيل العداد مرة واحدة في الغرفة
-        function startGlobalTimer() {
-            const timerRef = db.ref(`rooms/${myRoom}/timer`);
-            timerRef.once('value', snap => {
-                if(!snap.exists()) timerRef.set(300);
+        function startCounter() {
+            db.ref(`rooms/${myRoom}/players`).limitToFirst(1).on('value', snap => {
+                if(snap.exists() && Object.keys(snap.val())[0] === myNick) {
+                    if(!window.timerInterval) {
+                        window.timerInterval = setInterval(() => {
+                            db.ref(`rooms/${myRoom}/timer`).transaction(t => {
+                                if (t === null) return 300;
+                                return t > 0 ? t - 1 : 0;
+                            });
+                        }, 1000);
+                    }
+                }
             });
-            // تحديث الوقت كل ثانية (المسؤول هو أول من يدخل)
-            setInterval(() => {
-                timerRef.transaction(t => {
-                    if (t > 0) return t - 1;
-                    return 0;
-                });
-            }, 1000);
         }
 
         function listenTimer() {
             db.ref(`rooms/${myRoom}/timer`).on('value', snap => {
-                const timeLeft = snap.val() || 0;
+                const timeLeft = snap.val() !== null ? snap.val() : 300;
                 const mins = Math.floor(timeLeft / 60);
                 const secs = timeLeft % 60;
                 document.getElementById('time-text').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
                 document.getElementById('timer-display').style.width = (timeLeft / 300 * 100) + "%";
                 
-                if(timeLeft <= 0) db.ref(`rooms/${myRoom}/phase`).set('voting');
+                if(timeLeft <= 0) {
+                    db.ref(`rooms/${myRoom}/phase`).set('voting');
+                }
             });
         }
 
@@ -150,6 +160,16 @@
             db.ref(`rooms/${myRoom}/phase`).on('value', snap => {
                 if(snap.val() === 'voting') showVoteScreen();
                 else document.getElementById('overlay').classList.add('hidden');
+            });
+        }
+
+        function listenStatus() {
+            db.ref(`rooms/${myRoom}/players/${myNick}/status`).on('value', snap => {
+                if(snap.val() === 'observer') {
+                    isObserver = true;
+                    document.getElementById('role-tag').innerText = "مشاهد 👁️";
+                    document.getElementById('input-area').classList.add('hidden');
+                }
             });
         }
 
@@ -173,8 +193,13 @@
 
         function submitVote(target) {
             db.ref(`rooms/${myRoom}/votes/${target}`).transaction(v => (v || 0) + 1);
-            document.getElementById('overlay-content').innerHTML = "<h3>تم الإدلاء بصوتك.. بانتظار النتائج ⏳</h3>";
-            setTimeout(processVotes, 8000); // معالجة الأصوات بعد 8 ثوانٍ
+            document.getElementById('overlay-content').innerHTML = "<h3>تم تصويتك.. بانتظار البقية ⏳</h3>";
+            
+            db.ref(`rooms/${myRoom}/players`).limitToFirst(1).once('value', snap => {
+                if(Object.keys(snap.val())[0] === myNick) {
+                    setTimeout(processVotes, 10000);
+                }
+            });
         }
 
         function processVotes() {
@@ -189,7 +214,7 @@
                     db.ref(`rooms/${myRoom}/players/${target}/status`).set('observer');
                     db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: `🚫 تم إقصاء ${target}!`, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=sys" });
                 } else {
-                    db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: "📢 تعادل! لا إقصاء.", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=sys" });
+                    db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: "📢 تعادل! لا يوجد إقصاء.", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=sys" });
                 }
 
                 db.ref(`rooms/${myRoom}/votes`).remove();
