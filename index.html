@@ -16,7 +16,7 @@
         .btn-red { background: var(--red) !important; }
         .btn-green { background: var(--green) !important; }
         .screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
-        .card { background: var(--card-bg); border-radius: 20px; padding: 25px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .card { background: var(--card-bg); border-radius: 20px; padding: 25px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #30363d; }
         input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #30363d; background: #0d1117; color: white; margin-bottom: 12px; text-align: center; font-family: 'Tajawal'; }
         #chat-container { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; background: #0d1117; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
@@ -24,8 +24,9 @@
         .msg.me { align-self: flex-end; background: var(--accent); border: none; flex-direction: row-reverse; }
         .msg-avatar { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--neon-blue); background: #eee; flex-shrink: 0; }
         .timer-bar { background: var(--red); height: 5px; width: 100%; transition: width 1s linear; }
-        .top-bar { padding: 10px 15px; background: #1c1f26; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .top-bar { padding: 10px 15px; background: #1c1f26; display: flex; justify-content: space-between; align-items: center; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.97); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .sys-msg { background: rgba(255, 0, 110, 0.1); border: 1px dashed var(--red); color: var(--red); align-self: center; font-size: 12px; padding: 5px 15px; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -36,8 +37,8 @@
             <input type="number" id="roomNum" placeholder="رقم الغرفة">
             <input type="text" id="realName" placeholder="اسمك الحقيقي">
             <input type="text" id="fakeName" placeholder="اسمك المستعار">
-            <input type="text" id="userJob" placeholder="مهمتك (مثل: طباخ، طيار)">
-            <input type="text" id="avatarStyle" placeholder="وصف شكلك (بالإنجليزي للدقة)">
+            <input type="text" id="userJob" placeholder="مهمتك (مثل: طيار)">
+            <input type="text" id="avatarStyle" placeholder="وصف شكلك (English)">
             <button class="btn" onclick="joinGame()">دخول اللعبة</button>
         </div>
     </div>
@@ -46,14 +47,14 @@
         <div id="chat-container">
             <div id="timer-display" class="timer-bar"></div>
             <div class="top-bar">
-                <button class="btn btn-red" style="width: auto; padding: 5px 10px; font-size: 11px;" onclick="exitGame()">خروج 🚪</button>
-                <button id="call-vote-btn" class="btn btn-green" style="width: auto; padding: 5px 10px; font-size: 11px;" onclick="requestVote()">طلب تصويت 📢</button>
+                <button class="btn btn-red" style="width: auto; padding: 5px 12px; font-size: 11px;" onclick="exitGame()">خروج 🚪</button>
+                <button id="call-vote-btn" class="btn btn-green" style="width: auto; padding: 5px 12px; font-size: 11px;" onclick="requestVote()">تصويت 📢</button>
                 <span id="time-text" style="color: var(--red); font-weight: bold;">05:00</span>
                 <span id="player-display" style="font-size: 12px; font-weight:bold;"></span>
             </div>
             <div id="messages"></div>
             <div id="input-area" style="padding: 15px; background: #161b22; display: flex; gap: 10px;">
-                <input type="text" id="msgInput" placeholder="تحدث..." style="margin-bottom: 0; flex: 1;">
+                <input type="text" id="msgInput" placeholder="اكتب رسالتك..." style="margin-bottom: 0; flex: 1;">
                 <button class="btn" style="width: auto;" onclick="sendMsg()">إرسال</button>
             </div>
         </div>
@@ -73,10 +74,8 @@
           appId: "1:556976912934:web:aa52c43ae4b0fd8f5344e7",
           databaseURL: "https://mutakhafi-habba-default-rtdb.europe-west1.firebasedatabase.app"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        
         let myNick, myReal, myRoom, myAvatar, myJob, isObserver = false;
 
         function joinGame() {
@@ -85,11 +84,9 @@
             myNick = document.getElementById('fakeName').value;
             myJob = document.getElementById('userJob').value || "مواطن";
             let style = document.getElementById('avatarStyle').value || "man";
-
-            if(!myRoom || !myReal || !myNick) return alert("اكمل البيانات!");
+            if(!myRoom || !myReal || !myNick) return alert("البيانات ناقصة!");
 
             myAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(style)}&backgroundColor=b6e3f4`;
-
             db.ref(`rooms/${myRoom}/players/${myNick}`).set({ real: myReal, avatar: myAvatar, job: myJob, status: 'playing' });
             db.ref(`rooms/${myRoom}/players/${myNick}`).onDisconnect().remove();
 
@@ -116,25 +113,26 @@
             db.ref(`rooms/${myRoom}/msgs`).on('child_added', snap => {
                 const data = snap.val();
                 const div = document.createElement('div');
-                div.className = `msg ${data.user === myNick ? 'me' : ''}`;
-                div.innerHTML = `<img src="${data.avatar}" class="msg-avatar"><div><div style="font-size:10px; opacity:0.7;"><b>${data.user}</b> • ${data.job}</div><div>${data.text}</div></div>`;
+                if(data.user === "النظام") {
+                    div.className = "sys-msg";
+                    div.innerText = data.text;
+                } else {
+                    div.className = `msg ${data.user === myNick ? 'me' : ''}`;
+                    div.innerHTML = `<img src="${data.avatar}" class="msg-avatar"><div><div style="font-size:10px; opacity:0.7;"><b>${data.user}</b> • ${data.job}</div><div>${data.text}</div></div>`;
+                }
                 document.getElementById('messages').appendChild(div);
                 document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
             });
         }
 
-        // نظام الوقت
         function initTimer() {
             db.ref(`rooms/${myRoom}/timer`).on('value', snap => {
-                let t = snap.val();
-                if (t === null) { db.ref(`rooms/${myRoom}/timer`).set(300); t = 300; }
+                let t = snap.val() || 300;
                 const mins = Math.floor(t/60); const secs = t%60;
                 document.getElementById('time-text').innerText = `${mins}:${secs<10?'0':''}${secs}`;
                 document.getElementById('timer-display').style.width = (t/300*100) + "%";
                 if(t <= 0) db.ref(`rooms/${myRoom}/phase`).set('voting');
             });
-
-            // المسؤول يحدث العداد
             db.ref(`rooms/${myRoom}/players`).limitToFirst(1).on('value', snap => {
                 if(Object.keys(snap.val()||{})[0] === myNick) {
                     if(!window.TInterval) window.TInterval = setInterval(() => {
@@ -144,23 +142,24 @@
             });
         }
 
-        // طلب تصويت
         function requestVote() {
             if(isObserver) return;
-            db.ref(`rooms/${myRoom}/voteRequest`).set({ requester: myNick, timestamp: Date.now() });
+            db.ref(`rooms/${myRoom}/voteRequest`).set({ requester: myNick, status: 'pending' });
         }
 
         function listenVoteRequest() {
             db.ref(`rooms/${myRoom}/voteRequest`).on('value', snap => {
                 const data = snap.val();
-                if(data && data.requester !== myNick) {
+                if(data && data.status === 'pending' && data.requester !== myNick) {
                     const content = document.getElementById('overlay-content');
-                    content.innerHTML = `<h3>🚨 طلب مناقشة!</h3><p><b>${data.requester}</b> يبي يفتح التصويت الحين، تسمح له؟</p>
+                    content.innerHTML = `<h3>🚨 طلب تصويت!</h3><p><b>${data.requester}</b> يبي يفتح التصويت، موافق؟</p>
                         <div style="display:flex; gap:10px;">
                             <button class="btn btn-green" onclick="answerRequest(true)">تم ✅</button>
                             <button class="btn btn-red" onclick="answerRequest(false)">يدز ❌</button>
                         </div>`;
                     document.getElementById('overlay').classList.remove('hidden');
+                } else if (!data && !document.getElementById('overlay-content').innerHTML.includes('التصويت')) {
+                    document.getElementById('overlay').classList.add('hidden');
                 }
             });
 
@@ -180,19 +179,19 @@
 
         function answerRequest(ans) {
             db.ref(`rooms/${myRoom}/requestAnswers/${myNick}`).set(ans);
-            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('overlay-content').innerHTML = "<h3>بانتظار البقية.. ⏳</h3>";
         }
 
         function listenPhase() {
             db.ref(`rooms/${myRoom}/phase`).on('value', snap => {
                 if(snap.val() === 'voting') showVoteScreen();
-                else document.getElementById('overlay').classList.add('hidden');
+                else if(snap.val() === 'chat') document.getElementById('overlay').classList.add('hidden');
             });
         }
 
         function showVoteScreen() {
             const content = document.getElementById('overlay-content');
-            content.innerHTML = `<h3>التصويت 🗳️</h3><div id="vote-list"></div>`;
+            content.innerHTML = `<h3>التصويت 🗳️</h3><p>من هو المتخفي؟</p><div id="vote-list"></div>`;
             document.getElementById('overlay').classList.remove('hidden');
             db.ref(`rooms/${myRoom}/players`).once('value', snap => {
                 snap.forEach(p => {
@@ -202,8 +201,10 @@
                         b.innerText = `طرد ${p.key}`;
                         b.onclick = () => {
                             db.ref(`rooms/${myRoom}/votes/${p.key}`).transaction(v => (v || 0) + 1);
-                            content.innerHTML = "<h4>تم التصويت..</h4>";
-                            setTimeout(processVotes, 5000);
+                            content.innerHTML = "<h4>تم التصويت.. بانتظار النتائج</h4>";
+                            db.ref(`rooms/${myRoom}/players`).limitToFirst(1).once('value', s => {
+                                if(Object.keys(s.val()||{})[0] === myNick) setTimeout(processVotes, 6000);
+                            });
                         };
                         content.appendChild(b);
                     }
@@ -220,7 +221,9 @@
                 });
                 if(target && !tie) {
                     db.ref(`rooms/${myRoom}/players/${target}/status`).set('observer');
-                    db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: `🚫 تم إقصاء ${target}!`, avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=sys", job: "آلي" });
+                    db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: `⛔ تم طرد ${target} وصار مشاهد!` });
+                } else {
+                    db.ref(`rooms/${myRoom}/msgs`).push({ user: "النظام", text: `📢 تعادل! ما انطرد أحد.` });
                 }
                 db.ref(`rooms/${myRoom}/votes`).remove();
                 db.ref(`rooms/${myRoom}/timer`).set(300);
@@ -232,21 +235,19 @@
             db.ref(`rooms/${myRoom}/players/${myNick}/status`).on('value', snap => {
                 if(snap.val() === 'observer') {
                     isObserver = true;
-                    document.getElementById('role-tag')?.remove();
-                    document.getElementById('input-area').innerHTML = "<p style='color:gray; text-align:center; width:100%'>أنت مشاهد الآن 👁️</p>";
+                    document.getElementById('input-area').innerHTML = "<p style='color:var(--red); text-align:center; width:100%'>لقد تم طردك.. أنت تشاهد الآن 👁️</p>";
+                    document.getElementById('call-vote-btn').classList.add('hidden');
                 }
             });
         }
 
         function exitGame() {
-            if(confirm("خروج وتنظيف؟")) {
-                db.ref(`rooms/${myRoom}/players/${myNick}`).remove().then(() => {
-                    db.ref(`rooms/${myRoom}/players`).once('value', snap => {
-                        if(!snap.exists()) db.ref(`rooms/${myRoom}`).remove();
-                        location.reload();
-                    });
+            db.ref(`rooms/${myRoom}/players/${myNick}`).remove().then(() => {
+                db.ref(`rooms/${myRoom}/players`).once('value', snap => {
+                    if(!snap.exists()) db.ref(`rooms/${myRoom}`).remove();
+                    location.reload();
                 });
-            }
+            });
         }
     </script>
 </body>
