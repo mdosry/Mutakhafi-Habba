@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متخفي هبّة - النسخة المطورة 🎭</title>
+    <title>متخفي هبّة 🎭</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
@@ -13,14 +13,13 @@
         body { background-color: var(--bg-dark); color: white; font-family: 'Tajawal', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .hidden { display: none !important; }
         .btn { background: var(--accent); border: none; color: white; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
-        .btn:active { transform: scale(0.98); }
         .screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
         .card { background: var(--card-bg); border: 2px solid var(--accent); border-radius: 20px; padding: 25px; width: 100%; max-width: 400px; text-align: center; }
-        input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #30363d; background: #0d1117; color: white; margin-bottom: 15px; box-sizing: border-box; }
-        #chat-container { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; background: #0d1117; position: relative; }
+        input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #30363d; background: #0d1117; color: white; margin-bottom: 15px; box-sizing: border-box; text-align: center; }
+        #chat-container { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; background: #0d1117; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { background: #21262d; padding: 10px 15px; border-radius: 15px; max-width: 80%; align-self: flex-start; border-bottom-right-radius: 2px; }
-        .msg.me { align-self: flex-end; background: var(--accent); border-bottom-right-radius: 15px; border-bottom-left-radius: 2px; }
+        .msg { background: #21262d; padding: 10px 15px; border-radius: 15px; max-width: 80%; align-self: flex-start; }
+        .msg.me { align-self: flex-end; background: var(--accent); }
         .msg-sender { font-size: 11px; color: var(--neon-blue); margin-bottom: 4px; font-weight: 900; }
         .input-area { padding: 15px; background: #161b22; display: flex; gap: 10px; border-top: 1px solid #30363d; }
         #vote-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; }
@@ -31,25 +30,21 @@
     <div id="setup-screen" class="screen">
         <div class="card">
             <h2 style="color: var(--neon-blue);">متخفي هبّة 🎭</h2>
-            <input type="text" id="fakeName" placeholder="اسمك المستعار">
-            <select id="field">
-                <option value="خبير AI">خبير ذكاء اصطناعي 🤖</option>
-                <option value="تاجر عملات">تاجر عملات رقمية 🪙</option>
-                <option value="صانع محتوى">صانع محتوى هبّة 🎥</option>
-            </select>
-            <button class="btn" onclick="joinGame()">دخول القروب 💬</button>
+            <input type="text" id="fakeName" placeholder="اختر اسم مستعار">
+            <input type="text" id="userJob" placeholder="اكتب مهنتك (مثلاً: تاجر، طيار...)">
+            <button class="btn" onclick="joinGame()">دخول اللعبة 💬</button>
         </div>
     </div>
 
     <div id="chat-screen" class="screen hidden" style="padding: 0;">
         <div id="chat-container">
             <div style="padding: 10px; background: #161b22; text-align: center; border-bottom: 1px solid #30363d;">
-                <span id="player-tag" style="color: var(--neon-blue);"></span>
-                <button class="btn" style="background: var(--red); width: auto; padding: 5px 15px; font-size: 12px; margin-right: 15px;" onclick="triggerVote()">طلب إقصاء 🚫</button>
+                <span id="player-tag" style="color: var(--neon-blue); font-size: 14px;"></span>
+                <button class="btn" style="background: var(--red); width: auto; padding: 5px 15px; font-size: 12px; margin-right: 15px;" onclick="triggerVote()">إقصاء 🚫</button>
             </div>
             <div id="messages"></div>
             <div class="input-area">
-                <input type="text" id="msgInput" placeholder="تحدث بشخصيتك الجديدة...">
+                <input type="text" id="msgInput" placeholder="تحدث بصفتك الجديدة..." style="margin-bottom: 0;">
                 <button class="btn" style="width: auto;" onclick="sendMsg()">إرسال</button>
             </div>
         </div>
@@ -58,8 +53,7 @@
     <div id="vote-overlay" class="hidden">
         <div class="card" style="border-color: var(--red);">
             <h2 style="color: var(--red);">تصويت إقصاء! ⚠️</h2>
-            <p>هل توافق على بدء الإقصاء؟</p>
-            <p id="vote-counter" style="font-weight: 900; font-size: 24px;">0</p>
+            <p id="vote-counter" style="font-weight: 900; font-size: 24px;">الموافقون: 0</p>
             <button class="btn" onclick="castVote()">أوافق ✅</button>
             <button class="btn" style="background:transparent; margin-top:10px; font-size:12px;" onclick="closeVote()">إلغاء</button>
         </div>
@@ -73,7 +67,8 @@
           storageBucket: "mutakhafi-habba.firebasestorage.app",
           messagingSenderId: "556976912934",
           appId: "1:556976912934:web:aa52c43ae4b0fd8f5344e7",
-          databaseURL: "https://mutakhafi-habba-default-rtdb.firebaseio.com"
+          // تم تعديل الرابط لسيرفر بلجيكا هنا
+          databaseURL: "https://mutakhafi-habba-default-rtdb.europe-west1.firebasedatabase.app"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -82,11 +77,13 @@
 
         function joinGame() {
             myNick = document.getElementById('fakeName').value;
-            const role = document.getElementById('field').value;
+            const job = document.getElementById('userJob').value || "بدون مهنة";
             if(!myNick) return alert("الاسم مطلوب!");
-            document.getElementById('player-tag').innerText = `${myNick} (${role})`;
+            
+            document.getElementById('player-tag').innerText = `${myNick} | ${job}`;
             document.getElementById('setup-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
+            
             listenMessages();
             listenVotes();
         }
@@ -94,7 +91,7 @@
         function sendMsg() {
             const val = document.getElementById('msgInput').value;
             if(!val) return;
-            db.ref('msgs').push({ user: myNick, text: val, ts: Date.now() });
+            db.ref('msgs').push({ user: myNick, text: val });
             document.getElementById('msgInput').value = "";
         }
 
@@ -110,7 +107,7 @@
         }
 
         function triggerVote() { 
-            db.ref('vote').set({ active: true, voters: { [myNick]: true } }); 
+            db.ref('vote').set({ active: true, voters: { [myNick.replace(/[.#$[\]]/g, "")]: true } }); 
         }
 
         function listenVotes() {
@@ -127,7 +124,6 @@
         }
 
         function castVote() {
-            // إضافة اسم المستخدم كـ "مفتاح" لمنع تكرار التصويت لنفس الشخص
             db.ref('vote/voters/' + myNick.replace(/[.#$[\]]/g, "")).set(true);
         }
 
