@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متخفي هبّة - نسخة الاستقرار 🚀</title>
+    <title>متخفي هبّة 🎭</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
@@ -23,7 +23,7 @@
         .msg { background: #21262d; padding: 12px; border-radius: 18px; max-width: 85%; align-self: flex-start; display: flex; gap: 10px; border: 1px solid #30363d; }
         .msg.me { align-self: flex-end; background: var(--accent); flex-direction: row-reverse; }
         .msg-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--neon); flex-shrink: 0; }
-        .timer-bar { background: var(--red); height: 5px; width: 100%; transition: none; }
+        .timer-bar { background: var(--red); height: 5px; width: 100%; }
         .top-bar { padding: 10px; background: #1c1f26; display: flex; justify-content: space-between; align-items: center; }
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
     </style>
@@ -36,7 +36,6 @@
             <input type="number" id="roomNum" placeholder="رقم الغرفة">
             <input type="text" id="fakeName" placeholder="اسمك المستعار">
             <input type="text" id="userJob" placeholder="مهمتك">
-            <input type="text" id="avatarStyle" placeholder="وصف شكلك (English)">
             <button class="btn" onclick="joinGame()">دخول</button>
         </div>
     </div>
@@ -70,22 +69,18 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        let myNick, myRoom, myAvatar, myJob, isObserver = false;
+        let myNick, myRoom, myAvatar, myJob, isObserver = false, isVotingVisible = false;
 
         function joinGame() {
             myRoom = document.getElementById('roomNum').value;
             myNick = document.getElementById('fakeName').value;
             myJob = document.getElementById('userJob').value || "مواطن";
-            let style = document.getElementById('avatarStyle').value || "man";
             if(!myRoom || !myNick) return alert("اكمل البيانات!");
 
-            myAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(style)}`;
+            myAvatar = `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(myNick)}`;
             db.ref(`rooms/${myRoom}/players/${myNick}`).set({ avatar: myAvatar, job: myJob, status: 'playing' });
             
-            // ضبط وقت النهاية إذا لم يكن موجوداً (الآن + 5 دقائق)
-            db.ref(`rooms/${myRoom}/endTime`).transaction(current => {
-                return current || (Date.now() + 300000);
-            });
+            db.ref(`rooms/${myRoom}/endTime`).transaction(current => current || (Date.now() + 300000));
 
             document.getElementById('setup-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
@@ -102,14 +97,9 @@
                 db.ref(`rooms/${myRoom}/endTime`).once('value', snap => {
                     const endTime = snap.val();
                     if(!endTime) return;
-                    
-                    const now = Date.now();
-                    const diff = Math.max(0, Math.floor((endTime - now) / 1000));
-                    
-                    const m = Math.floor(diff/60), s = diff%60;
-                    document.getElementById('time-text').innerText = `${m}:${s<10?'0':''}${s}`;
+                    const diff = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+                    document.getElementById('time-text').innerText = `${Math.floor(diff/60)}:${(diff%60)<10?'0':''}${diff%60}`;
                     document.getElementById('timer-display').style.width = (diff/300*100) + "%";
-                    
                     if(diff <= 0) db.ref(`rooms/${myRoom}/phase`).set('voting');
                 });
             }, 1000);
@@ -117,18 +107,21 @@
 
         function requestVote() {
             if(isObserver) return;
-            db.ref(`rooms/${myRoom}/voteRequest`).set({ requester: myNick });
+            db.ref(`rooms/${myRoom}/voteRequest`).set({ requester: myNick, timestamp: Date.now() });
             db.ref(`rooms/${myRoom}/requestAnswers/${myNick}`).set(true);
         }
 
         function listenVoteRequest() {
             db.ref(`rooms/${myRoom}/voteRequest`).on('value', snap => {
                 const data = snap.val();
-                if(data && data.requester !== myNick) {
+                // إذا فيه طلب جديد وأنا لست السائل ولست في شاشة التصويت حالياً
+                if(data && data.requester !== myNick && !isVotingVisible) {
                     const content = document.getElementById('overlay-content');
                     content.innerHTML = `<h3>🚨 طلب تصويت!</h3><p><b>${data.requester}</b> طلب تصويت، موافق؟</p>
                         <div style="display:flex; gap:10px;"><button class="btn btn-green" onclick="answerRequest(true)">تم</button><button class="btn btn-red" onclick="answerRequest(false)">لا</button></div>`;
                     document.getElementById('overlay').classList.remove('hidden');
+                } else if (!data && !isVotingVisible) {
+                    document.getElementById('overlay').classList.add('hidden');
                 }
             });
 
@@ -139,8 +132,6 @@
                     const total = Object.keys(pSnap.val() || {}).length;
                     if(total > 0 && yesCount >= Math.ceil(total / 2)) {
                         db.ref(`rooms/${myRoom}/phase`).set('voting');
-                        db.ref(`rooms/${myRoom}/voteRequest`).remove();
-                        db.ref(`rooms/${myRoom}/requestAnswers`).remove();
                     }
                 });
             });
@@ -153,11 +144,17 @@
 
         function listenPhase() {
             db.ref(`rooms/${myRoom}/phase`).on('value', snap => {
-                if(snap.val() === 'voting') showVoteScreen();
-                else if(snap.val() === 'chat') {
+                const phase = snap.val();
+                if(phase === 'voting') {
+                    isVotingVisible = true;
+                    showVoteScreen();
+                } else if(phase === 'chat') {
+                    isVotingVisible = false;
                     document.getElementById('overlay').classList.add('hidden');
-                    // ريست للوقت عند العودة للشات
                     db.ref(`rooms/${myRoom}/endTime`).set(Date.now() + 300000);
+                    // تنظيف الطلبات القديمة عند العودة للشات
+                    db.ref(`rooms/${myRoom}/voteRequest`).remove();
+                    db.ref(`rooms/${myRoom}/requestAnswers`).remove();
                 }
             });
         }
@@ -175,7 +172,6 @@
                         b.onclick = () => {
                             db.ref(`rooms/${myRoom}/votes/${p.key}`).transaction(v => (v || 0) + 1);
                             content.innerHTML = "<h4>تم التصويت!</h4>";
-                            // المعالجة من قبل أول لاعب
                             db.ref(`rooms/${myRoom}/players`).limitToFirst(1).once('value', s => {
                                 if(Object.keys(s.val())[0] === myNick) setTimeout(processVotes, 5000);
                             });
@@ -200,7 +196,7 @@
             if(isObserver) return;
             const val = document.getElementById('msgInput').value;
             if(!val) return;
-            db.ref(`rooms/${myRoom}/msgs`).push({ user: myNick, text: val, avatar: myAvatar, job: myJob });
+            db.ref(`rooms/${myRoom}/msgs`).push({ user: myNick, text: val, avatar: myAvatar });
             document.getElementById('msgInput').value = "";
         }
 
